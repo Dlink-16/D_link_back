@@ -16,6 +16,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 라우터 등록
+from app.api.endpoints import chat
+app.include_router(chat.router, prefix="/api", tags=["chat"])
+
 @app.get("/")
 def read_root():
     return {"message": "Team Project Backend API"}
