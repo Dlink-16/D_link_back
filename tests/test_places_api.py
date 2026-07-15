@@ -106,6 +106,26 @@ def test_list_places_supports_pagination(client):
     assert second_page.json()[0]["external_id"] == "1002"
 
 
+def test_list_places_supports_random_selection(client):
+    response = client.get("/api/places?random=true&limit=1")
+
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+    assert response.json()[0]["external_id"] in {"1001", "1002"}
+
+
+def test_count_places_matches_list_filters(client):
+    all_places = client.get("/api/places/count")
+    filtered_places = client.get(
+        "/api/places/count?legal_region_code=30&legal_sigungu_code=30110"
+    )
+
+    assert all_places.status_code == 200
+    assert all_places.json() == {"total": 2}
+    assert filtered_places.status_code == 200
+    assert filtered_places.json() == {"total": 1}
+
+
 def test_list_places_rejects_invalid_page(client):
     response = client.get("/api/places?page=0")
 

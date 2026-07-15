@@ -3,13 +3,19 @@
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db_session
 from app.models.place import ContentType
 from app.models.post import Post
-from app.schemas.post import DeleteResponse, PostCreate, PostResponse, PostUpdate
+from app.schemas.post import (
+    DeleteResponse,
+    PostCountResponse,
+    PostCreate,
+    PostResponse,
+    PostUpdate,
+)
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
 
@@ -42,22 +48,55 @@ def validate_category(category: str, session: Session) -> None:
         raise HTTPException(status_code=422, detail="invalid category")
 
 
+def apply_post_filters(statement, category: str | None, search: str | None):
+    """목록과 개수 조회에 동일한 카테고리·검색 조건을 적용한다."""
+    if category:
+        statement = statement.where(Post.category == category)
+
+    keyword = search.strip() if search else ""
+    if keyword:
+        escaped_keyword = (
+            keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        )
+        pattern = f"%{escaped_keyword}%"
+        statement = statement.where(
+            or_(
+                Post.title.ilike(pattern, escape="\\"),
+                Post.content.ilike(pattern, escape="\\"),
+            )
+        )
+
+    return statement
+
+
 @router.get("/", response_model=list[PostResponse])
 def list_posts(
     category: str | None = Query(default=None),
+    search: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
     session: Session = Depends(get_db_session),
 ):
-    """최신 게시글을 카테고리 선택 조건과 함께 조회한다."""
-    statement = select(Post)
-    if category:
-        statement = statement.where(Post.category == category)
+    """최신 게시글을 카테고리와 검색 조건에 따라 조회한다."""
+    statement = apply_post_filters(select(Post), category, search)
     offset = (page - 1) * limit
     posts = session.scalars(
         statement.order_by(Post.id.desc()).offset(offset).limit(limit)
     ).all()
     return [serialize_post(post) for post in posts]
+
+
+@router.get("/count", response_model=PostCountResponse)
+def count_posts(
+    category: str | None = Query(default=None),
+    search: str | None = Query(default=None),
+    session: Session = Depends(get_db_session),
+):
+    """목록 조회와 같은 조건에 맞는 전체 게시글 수를 반환한다."""
+    statement = apply_post_filters(
+        select(func.count()).select_from(Post), category, search
+    )
+    return {"total": session.scalar(statement) or 0}
 
 
 @router.get("/{post_id}", response_model=PostResponse)

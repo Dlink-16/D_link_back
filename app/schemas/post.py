@@ -31,6 +31,12 @@ class PostResponse(BaseModel):
     updated_at: str
 
 
+class PostCountResponse(BaseModel):
+    """게시글 목록 조건에 맞는 전체 게시글 수 응답."""
+
+    total: int
+
+
 class DeleteResponse(BaseModel):
     """게시글 삭제 결과 응답."""
 
