@@ -39,3 +39,5 @@ wheels/
 # Project specific
 logs/
 *.log
+test.py
+test_api.py
