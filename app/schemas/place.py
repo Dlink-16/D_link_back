@@ -23,6 +23,12 @@ class PlaceListResponse(BaseModel):
     content_type_name: str
 
 
+class PlaceCountResponse(BaseModel):
+    """장소 목록 조건에 맞는 전체 장소 수 응답."""
+
+    total: int
+
+
 class PlaceDetailResponse(PlaceListResponse):
     """관광 장소 한 건의 전체 원본 메타데이터."""
 

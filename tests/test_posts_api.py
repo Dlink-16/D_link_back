@@ -171,6 +171,27 @@ def test_list_posts_supports_pagination(client):
     assert [post["title"] for post in response.json()] == ["두 번째"]
 
 
+def test_list_and_count_posts_share_search_and_category_filters(client):
+    _create_post(client, title="대전 야경 명소", content="한빛탑 추천", category="관광지")
+    _create_post(client, title="대전 맛집", content="칼국수 추천", category="음식점")
+    _create_post(client, title="청주 산책", content="야경이 아름다운 길", category="관광지")
+
+    list_response = client.get(
+        "/api/posts", params={"category": "관광지", "search": "야경"}
+    )
+    count_response = client.get(
+        "/api/posts/count", params={"category": "관광지", "search": "야경"}
+    )
+
+    assert list_response.status_code == 200
+    assert [post["title"] for post in list_response.json()] == [
+        "청주 산책",
+        "대전 야경 명소",
+    ]
+    assert count_response.status_code == 200
+    assert count_response.json() == {"total": 2}
+
+
 def test_update_rejects_empty_title_or_content(client):
     post = _create_post(client, title="유효한 제목")
 
@@ -194,6 +215,7 @@ def test_openapi_contains_response_schemas(client):
     assert "PlaceListResponse" in schemas
     assert "PlaceDetailResponse" in schemas
     assert "PostResponse" in schemas
+    assert "PostCountResponse" in schemas
     assert "DeleteResponse" in schemas
 
 

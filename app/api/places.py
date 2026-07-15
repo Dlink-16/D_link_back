@@ -1,14 +1,33 @@
 """관광 장소 목록과 상세 조회 API를 제공한다."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db_session
 from app.models.place import ContentType, Place, Region
-from app.schemas.place import PlaceDetailResponse, PlaceListResponse
+from app.schemas.place import PlaceCountResponse, PlaceDetailResponse, PlaceListResponse
 
 router = APIRouter(prefix="/api/places", tags=["places"])
+
+
+def apply_place_filters(
+    statement,
+    region: str | None,
+    content_type: str | None,
+    legal_region_code: str | None,
+    legal_sigungu_code: str | None,
+):
+    """목록과 개수 조회에 동일한 장소 필터를 적용한다."""
+    if region:
+        statement = statement.where(Region.code == region)
+    if content_type:
+        statement = statement.where(ContentType.name == content_type)
+    if legal_region_code:
+        statement = statement.where(Place.legal_region_code == legal_region_code)
+    if legal_sigungu_code:
+        statement = statement.where(Place.legal_sigungu_code == legal_sigungu_code)
+    return statement
 
 
 @router.get("/", response_model=list[PlaceListResponse])
@@ -17,6 +36,7 @@ def list_places(
     content_type: str | None = Query(default=None),
     legal_region_code: str | None = Query(default=None),
     legal_sigungu_code: str | None = Query(default=None),
+    random: bool = Query(default=False),
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
     session: Session = Depends(get_db_session),
@@ -44,22 +64,47 @@ def list_places(
         .join(ContentType, Place.content_type_id == ContentType.id)
     )
 
-    if region:
-        statement = statement.where(Region.code == region)
-    if content_type:
-        statement = statement.where(ContentType.name == content_type)
-    if legal_region_code:
-        statement = statement.where(Place.legal_region_code == legal_region_code)
-    if legal_sigungu_code:
-        statement = statement.where(Place.legal_sigungu_code == legal_sigungu_code)
+    statement = apply_place_filters(
+        statement,
+        region,
+        content_type,
+        legal_region_code,
+        legal_sigungu_code,
+    )
 
     offset = (page - 1) * limit
+    ordering = func.random() if random else Place.id
     rows = (
-        session.execute(statement.order_by(Place.id).offset(offset).limit(limit))
+        session.execute(statement.order_by(ordering).offset(offset).limit(limit))
         .mappings()
         .all()
     )
     return [dict(row) for row in rows]
+
+
+@router.get("/count", response_model=PlaceCountResponse)
+def count_places(
+    region: str | None = Query(default=None),
+    content_type: str | None = Query(default=None),
+    legal_region_code: str | None = Query(default=None),
+    legal_sigungu_code: str | None = Query(default=None),
+    session: Session = Depends(get_db_session),
+):
+    """목록 조회와 같은 조건에 맞는 전체 장소 수를 반환한다."""
+    statement = (
+        select(func.count())
+        .select_from(Place)
+        .join(Region, Place.region_id == Region.id)
+        .join(ContentType, Place.content_type_id == ContentType.id)
+    )
+    statement = apply_place_filters(
+        statement,
+        region,
+        content_type,
+        legal_region_code,
+        legal_sigungu_code,
+    )
+    return {"total": session.scalar(statement) or 0}
 
 
 @router.get("/{place_id}", response_model=PlaceDetailResponse)

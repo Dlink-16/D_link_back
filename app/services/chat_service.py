@@ -8,9 +8,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# OpenAI 클라이언트 초기화 (API Key는 환경변수에서 로드)
-client = AsyncOpenAI(api_key=os.environ.get("OPENAI_API_KEY", ""))
-
 # 프로젝트 최상위의 data 폴더 경로 지정
 DATA_DIR = Path(__file__).parent.parent.parent / "data"
 
@@ -121,10 +118,13 @@ def filter_data(message: str) -> str:
 
 async def generate_chat_response(request: ChatRequest) -> ChatResponse:
     # API 키가 설정되지 않은 경우
-    if not client.api_key:
+    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if not api_key:
         return ChatResponse(
             reply="[알림] OPENAI_API_KEY가 설정되지 않았습니다. .env 파일을 확인해 주세요."
         )
+
+    client = AsyncOpenAI(api_key=api_key)
 
     # 사용자 질문에 맞춰 필요한 데이터 추출
     filtered_info = filter_data(request.message)
