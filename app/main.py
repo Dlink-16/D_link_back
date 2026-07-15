@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.content_types import router as content_types_router
 from app.api.places import router as places_router
 from app.api.posts import router as posts_router
+from app.api.endpoints import chat
 from app.core.config import get_settings
 from app.core.database import init_db
 
@@ -39,9 +40,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 라우터 등록
 app.include_router(content_types_router)
 app.include_router(places_router)
 app.include_router(posts_router)
+app.include_router(chat.router, prefix="/api", tags=["chat"])
 
 @app.get("/")
 def read_root():

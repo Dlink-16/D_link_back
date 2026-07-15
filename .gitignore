@@ -40,9 +40,6 @@ wheels/
 # Project specific
 logs/
 *.log
-.pytest_cache/
-.coverage
-htmlcov/
 
 # SQLite runtime files (keep only the initialized deliverable DB)
 *.db
