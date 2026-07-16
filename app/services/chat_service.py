@@ -99,8 +99,8 @@ def filter_data(message: str) -> str:
         if not items:
             return f"사용자가 요청한 지역({', '.join(matched_locations)})에 해당하는 {selected_category} 데이터가 존재하지 않습니다."
 
-    # 3. 필터링된 결과 중에서 무작위로(랜덤) 최대 15개 추출
-    sample_size = min(15, len(items))
+    # 3. 필터링된 결과 중에서 무작위로(랜덤) 최대 4개 추출
+    sample_size = min(4, len(items))
     selected_items = random.sample(items, sample_size)
     
     # 3. OpenAI에게 넘겨줄 텍스트로 가공
@@ -114,7 +114,7 @@ def filter_data(message: str) -> str:
             tel = "번호 없음"
         result_text += f"- 이름: {title}, 주소: {addr}, 전화번호: {tel}\n"
         
-    return result_text
+    return result_text, selected_items
 
 async def generate_chat_response(request: ChatRequest) -> ChatResponse:
     # API 키가 설정되지 않은 경우
@@ -127,7 +127,7 @@ async def generate_chat_response(request: ChatRequest) -> ChatResponse:
     client = AsyncOpenAI(api_key=api_key)
 
     # 사용자 질문에 맞춰 필요한 데이터 추출
-    filtered_info = filter_data(request.message)
+    filtered_info, selected_items = filter_data(request.message)
     
     system_prompt = f"""
 당신은 대전-충청권 지역 정보를 안내하는 친절한 AI 어시스턴트입니다.
@@ -155,6 +155,32 @@ async def generate_chat_response(request: ChatRequest) -> ChatResponse:
             messages=messages
         )
         reply_content = response.choices[0].message.content
-        return ChatResponse(reply=reply_content)
+        
+        # 프론트엔드 지도 표시용 좌표 데이터 추출
+        locations = []
+        for item in selected_items:
+            title = item.get("title", item.get("REST_NM", "이름 없음"))
+            addr1 = item.get("addr1", item.get("ADDR", "주소 없음"))
+            
+            # API 데이터 소스(TourAPI 또는 자체 맛집DB)에 따라 키가 다름
+            lat = item.get("mapy", item.get("LAT"))
+            lng = item.get("mapx", item.get("LOT"))
+            
+            # None 또는 빈 문자열 체크 후 float 변환
+            try:
+                lat = float(lat) if lat else None
+                lng = float(lng) if lng else None
+            except ValueError:
+                lat, lng = None, None
+                
+            if lat and lng:
+                locations.append({
+                    "name": title,
+                    "address": addr1,
+                    "lat": lat,
+                    "lng": lng
+                })
+        
+        return ChatResponse(reply=reply_content, locations=locations)
     except Exception as e:
         return ChatResponse(reply=f"죄송합니다. 오류가 발생했습니다: {str(e)}")

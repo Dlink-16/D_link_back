@@ -11,3 +11,4 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     reply: str
+    locations: Optional[List[dict]] = []
