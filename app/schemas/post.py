@@ -17,6 +17,7 @@ class PostUpdate(BaseModel):
 
     title: str | None = Field(default=None, min_length=1)
     content: str | None = Field(default=None, min_length=1)
+    category: str | None = Field(default=None, min_length=1)
     password: str = Field(min_length=1)
 
 
@@ -41,3 +42,15 @@ class DeleteResponse(BaseModel):
     """게시글 삭제 결과 응답."""
 
     deleted: bool
+
+
+class PasswordVerify(BaseModel):
+    """수정·삭제 전에 비밀번호를 확인할 때 사용하는 요청."""
+
+    password: str = Field(min_length=1)
+
+
+class PasswordVerifyResponse(BaseModel):
+    """비밀번호 검증 성공 응답."""
+
+    valid: bool

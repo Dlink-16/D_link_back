@@ -15,6 +15,8 @@ from app.schemas.post import (
     PostCreate,
     PostResponse,
     PostUpdate,
+    PasswordVerify,
+    PasswordVerifyResponse,
 )
 
 router = APIRouter(prefix="/api/posts", tags=["posts"])
@@ -140,11 +142,29 @@ def update_post(
         post.title = payload.title
     if payload.content is not None:
         post.content = payload.content
+    if payload.category is not None:
+        validate_category(payload.category, session)
+        post.category = payload.category
     post.updated_at = get_kst_now()
 
     session.commit()
     session.refresh(post)
     return serialize_post(post)
+
+
+@router.post("/{post_id}/verify-password", response_model=PasswordVerifyResponse)
+def verify_post_password(
+    post_id: int,
+    payload: PasswordVerify,
+    session: Session = Depends(get_db_session),
+):
+    """수정 화면으로 이동하기 전에 게시글 비밀번호를 검증한다."""
+    post = session.get(Post, post_id)
+    if post is None:
+        raise HTTPException(status_code=404, detail="post not found")
+    if post.password != payload.password:
+        raise HTTPException(status_code=403, detail="password mismatch")
+    return {"valid": True}
 
 
 @router.delete("/{post_id}", response_model=DeleteResponse)

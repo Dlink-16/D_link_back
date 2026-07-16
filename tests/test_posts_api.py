@@ -88,6 +88,107 @@ def test_update_and_delete_post(client):
     assert delete_response.json()["deleted"] is True
 
 
+def test_update_post_category_and_verify_password(client):
+    post = _create_post(client, title="카테고리 변경", category="관광지")
+
+    verify_response = client.post(
+        f"/api/posts/{post['id']}/verify-password",
+        json={"password": "1234"},
+    )
+    update_response = client.put(
+        f"/api/posts/{post['id']}",
+        json={"category": "문화시설", "password": "1234"},
+    )
+
+    assert verify_response.status_code == 200
+    assert verify_response.json() == {"valid": True}
+    assert update_response.status_code == 200
+    assert update_response.json()["category"] == "문화시설"
+
+
+def test_verify_post_password_rejects_wrong_password(client):
+    post = _create_post(client, title="비밀번호 검증")
+
+    response = client.post(
+        f"/api/posts/{post['id']}/verify-password",
+        json={"password": "wrong"},
+    )
+
+    assert response.status_code == 403
+
+
+def test_comment_crud_and_password_verification(client):
+    post = _create_post(client, title="댓글 테스트")
+    post_id = post["id"]
+
+    create_response = client.post(
+        f"/api/posts/{post_id}/comments",
+        json={"content": "첫 댓글", "password": "5678"},
+    )
+    assert create_response.status_code == 201
+    comment = create_response.json()
+    assert comment["content"] == "첫 댓글"
+    assert "password" not in comment
+
+    list_response = client.get(f"/api/posts/{post_id}/comments")
+    assert list_response.status_code == 200
+    assert [item["content"] for item in list_response.json()] == ["첫 댓글"]
+
+    verify_response = client.post(
+        f"/api/posts/{post_id}/comments/{comment['id']}/verify-password",
+        json={"password": "5678"},
+    )
+    assert verify_response.status_code == 200
+
+    update_response = client.put(
+        f"/api/posts/{post_id}/comments/{comment['id']}",
+        json={"content": "수정 댓글", "password": "5678"},
+    )
+    assert update_response.status_code == 200
+    assert update_response.json()["content"] == "수정 댓글"
+
+    delete_response = client.delete(
+        f"/api/posts/{post_id}/comments/{comment['id']}",
+        params={"password": "5678"},
+    )
+    assert delete_response.status_code == 200
+    assert delete_response.json() == {"deleted": True}
+
+
+def test_comment_mutation_rejects_wrong_password(client):
+    post = _create_post(client, title="댓글 비밀번호")
+    post_id = post["id"]
+    comment = client.post(
+        f"/api/posts/{post_id}/comments",
+        json={"content": "원본", "password": "5678"},
+    ).json()
+
+    update_response = client.put(
+        f"/api/posts/{post_id}/comments/{comment['id']}",
+        json={"content": "수정 시도", "password": "wrong"},
+    )
+    delete_response = client.delete(
+        f"/api/posts/{post_id}/comments/{comment['id']}",
+        params={"password": "wrong"},
+    )
+
+    assert update_response.status_code == 403
+    assert delete_response.status_code == 403
+    assert client.get(f"/api/posts/{post_id}/comments").json()[0]["content"] == "원본"
+
+
+def test_deleting_post_cascades_to_comments(client):
+    post = _create_post(client, title="댓글 포함 게시글")
+    post_id = post["id"]
+    client.post(
+        f"/api/posts/{post_id}/comments",
+        json={"content": "함께 삭제", "password": "5678"},
+    )
+
+    assert client.delete(f"/api/posts/{post_id}", params={"password": "1234"}).status_code == 200
+    assert client.get(f"/api/posts/{post_id}/comments").status_code == 404
+
+
 def test_list_content_types(client):
     response = client.get("/api/content-types")
 

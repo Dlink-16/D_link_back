@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.content_types import router as content_types_router
+from app.api.comments import router as comments_router
 from app.api.places import router as places_router
 from app.api.posts import router as posts_router
 from app.api.endpoints import chat
@@ -44,6 +45,7 @@ app.add_middleware(
 app.include_router(content_types_router)
 app.include_router(places_router)
 app.include_router(posts_router)
+app.include_router(comments_router)
 app.include_router(chat.router, prefix="/api", tags=["chat"])
 
 @app.get("/")
