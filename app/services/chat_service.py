@@ -72,7 +72,7 @@ def filter_data(message: str) -> str:
     items = REGIONAL_DATA.get(selected_category, [])
     
     if not items:
-        return "해당 카테고리의 데이터가 없습니다."
+        return "해당 카테고리의 데이터가 없습니다.", []
 
     # 2. 지역 키워드 필터링 추가
     # 대전 및 충청권 주요 지역 키워드
@@ -97,7 +97,7 @@ def filter_data(message: str) -> str:
         
         # 만약 필터링 후 데이터가 없다면, AI에게 이 사실을 그대로 알려주기 위해 문자열 반환
         if not items:
-            return f"사용자가 요청한 지역({', '.join(matched_locations)})에 해당하는 {selected_category} 데이터가 존재하지 않습니다."
+            return f"사용자가 요청한 지역({', '.join(matched_locations)})에 해당하는 {selected_category} 데이터가 존재하지 않습니다.", []
 
     # 3. 필터링된 결과 중에서 무작위로(랜덤) 최대 4개 추출
     sample_size = min(4, len(items))
