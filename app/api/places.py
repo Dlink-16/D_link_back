@@ -1,7 +1,7 @@
 """관광 장소 목록과 상세 조회 API를 제공한다."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db_session
@@ -17,6 +17,7 @@ def apply_place_filters(
     content_type: str | None,
     legal_region_code: str | None,
     legal_sigungu_code: str | None,
+    search: str | None,
 ):
     """목록과 개수 조회에 동일한 장소 필터를 적용한다."""
     if region:
@@ -27,6 +28,18 @@ def apply_place_filters(
         statement = statement.where(Place.legal_region_code == legal_region_code)
     if legal_sigungu_code:
         statement = statement.where(Place.legal_sigungu_code == legal_sigungu_code)
+    keyword = search.strip() if search else ""
+    if keyword:
+        escaped_keyword = (
+            keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        )
+        pattern = f"%{escaped_keyword}%"
+        statement = statement.where(
+            or_(
+                Place.title.ilike(pattern, escape="\\"),
+                Place.addr1.ilike(pattern, escape="\\"),
+            )
+        )
     return statement
 
 
@@ -36,6 +49,7 @@ def list_places(
     content_type: str | None = Query(default=None),
     legal_region_code: str | None = Query(default=None),
     legal_sigungu_code: str | None = Query(default=None),
+    search: str | None = Query(default=None),
     random: bool = Query(default=False),
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=100),
@@ -70,6 +84,7 @@ def list_places(
         content_type,
         legal_region_code,
         legal_sigungu_code,
+        search,
     )
 
     offset = (page - 1) * limit
@@ -88,6 +103,7 @@ def count_places(
     content_type: str | None = Query(default=None),
     legal_region_code: str | None = Query(default=None),
     legal_sigungu_code: str | None = Query(default=None),
+    search: str | None = Query(default=None),
     session: Session = Depends(get_db_session),
 ):
     """목록 조회와 같은 조건에 맞는 전체 장소 수를 반환한다."""
@@ -103,6 +119,7 @@ def count_places(
         content_type,
         legal_region_code,
         legal_sigungu_code,
+        search,
     )
     return {"total": session.scalar(statement) or 0}
 

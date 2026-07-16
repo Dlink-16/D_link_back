@@ -126,6 +126,18 @@ def test_count_places_matches_list_filters(client):
     assert filtered_places.json() == {"total": 1}
 
 
+def test_list_and_count_places_search_title_or_address(client):
+    title_response = client.get("/api/places", params={"search": "테스트"})
+    address_response = client.get("/api/places", params={"search": "대전"})
+    count_response = client.get("/api/places/count", params={"search": "대전"})
+
+    assert title_response.status_code == 200
+    assert [place["external_id"] for place in title_response.json()] == ["1001"]
+    assert address_response.status_code == 200
+    assert [place["external_id"] for place in address_response.json()] == ["1001"]
+    assert count_response.json() == {"total": 1}
+
+
 def test_list_places_rejects_invalid_page(client):
     response = client.get("/api/places?page=0")
 
